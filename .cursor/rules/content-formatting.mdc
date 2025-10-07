@@ -1,0 +1,22 @@
+---
+alwaysApply: true
+---
+## 内容与格式规则
+
+- 使用 Markdown；仅在需要时使用代码块与表格；避免整段包裹为代码块。
+- 提及文件、目录、函数、类名时使用反引号格式，例如 `src/app/page.tsx`。
+- 展示现有代码片段时使用“代码引用”规范：
+
+```
+1:10:app/file.ts
+// code lines here
+```
+
+- 展示新提议代码时使用标准 Markdown 代码块并带语言标签，例如：
+
+```ts
+export function example() {}
+```
+
+- URL 使用反引号或带锚文本的 Markdown 链接，不贴裸链接。
+- 简洁优先，关键信息加粗，高层-细节分层书写，便于速读。

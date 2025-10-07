@@ -1,0 +1,15 @@
+---
+description: 项目上下文与目标
+---
+# DailyPack 项目上下文
+
+- 参考文档： [mvp.md](mdc:mvp.md) 与 [tasks.md](mdc:tasks.md)。
+- 目标：将每日零散记录聚合，AI 整理为待办、沉淀与多平台创作草稿，并写回 Notion 与网页展示。
+- 关键技术：前端 Next.js、自动化 n8n、AI 模型 Gemini、数据存储 Notion、部署 Docker/Vercel。
+
+## 验收关键点（MVP）
+- 网页输入成功写入 `DailyNotes`。
+- “今日打包”20 秒内整合与展示。
+- AI 结果正确回写 `ActionItems`/`KnowledgeHub`/`ContentDrafts`。
+- 前端完整展示行动/沉淀/三平台草稿。
+- iOS 快捷指令可写入 `DailyNotes`。
