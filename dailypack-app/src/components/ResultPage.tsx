@@ -1,5 +1,5 @@
 // src/components/ResultPage.tsx
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 
 interface ResultPageProps {
   resultData?: any; // webhook 返回的数据
@@ -7,86 +7,192 @@ interface ResultPageProps {
 }
 
 export default function ResultPage({ resultData, onBack }: ResultPageProps) {
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
+  
   // 解析 webhook 数据，提取三个部分的信息
   const parseWebhookData = (data: any) => {
-    console.log('ResultPage 接收到的原始数据:', data);
+    console.log('=== 开始解析数据 ===');
+    console.log('resultData 是否存在:', !!data);
+    console.log('resultData.data 是否存在:', !!(data && data.data));
+    console.log('resultData.data 类型:', typeof (data && data.data));
     
-    if (!data || !data.data) return { todoText: '', insightsText: '', socialText: '' };
-    
+    if (!data || !data.data) {
+      console.log('数据不存在，返回空结果');
+      return { todoText: '', insightsText: '', socialText: '' };
+    }
+
     try {
       let parsedData;
-      
+
       // 如果 data 是字符串，先解析为 JSON
       if (typeof data.data === 'string') {
+        console.log('data.data 是字符串，开始解析 JSON');
         parsedData = JSON.parse(data.data);
+        console.log('JSON 解析成功，解析后的数据类型:', typeof parsedData);
+        console.log('解析后的数据:', parsedData);
       } else {
+        console.log('data.data 不是字符串，直接使用');
         parsedData = data.data;
       }
-      
-      console.log('解析后的数据:', parsedData);
-      
+
       // 处理新的数据格式
       if (Array.isArray(parsedData) && parsedData.length > 0) {
+        console.log('检测到数组格式数据，长度:', parsedData.length);
+        
+        // 检查是否是简单的待办事项数组格式
+        if (parsedData[0] && parsedData[0]["['待办']"]) {
+          console.log('检测到简单待办事项格式');
+          return parseSimpleTodoFormat(parsedData);
+        }
+        
+        // 否则使用原来的复杂格式解析
         const mainData = parsedData[0];
-        return parseNewFormatData(mainData);
+        console.log('使用第一个元素进行解析:', mainData);
+        const result = parseNewFormatData(mainData);
+        console.log('parseNewFormatData 返回结果:', result);
+        return result;
       }
-      
+
       // 如果还是旧的格式，使用原来的解析逻辑
       if (Array.isArray(parsedData)) {
-        return parseArrayData(parsedData);
+        console.log('使用旧格式解析逻辑');
+        const result = parseArrayData(parsedData);
+        console.log('parseArrayData 返回结果:', result);
+        return result;
       }
-      
+
+      console.log('数据格式不匹配，返回空结果');
+
     } catch (error) {
       console.error('解析数据时出错:', error);
     }
-    
+
     return { todoText: '', insightsText: '', socialText: '' };
+  };
+
+  // 解析简单待办事项格式
+  const parseSimpleTodoFormat = (dataArray: any[]) => {
+    console.log('=== parseSimpleTodoFormat 开始 ===');
+    console.log('接收到的数据:', dataArray);
+    
+    const todoItems: string[] = [];
+    
+    dataArray.forEach((item, index) => {
+      console.log(`处理第 ${index + 1} 个待办事项:`, item);
+      if (item["['待办']"]) {
+        todoItems.push(item["['待办']"]);
+        console.log(`提取到待办事项: ${item["['待办']"]}`);
+      }
+    });
+    
+    const todoText = todoItems.join(', ');
+    console.log('最终待办事项文本:', todoText);
+    
+    return {
+      todoText,
+      insightsText: '', // 简单格式没有洞察信息
+      socialText: ''    // 简单格式没有社交媒体信息
+    };
   };
 
   // 解析新格式的数据
   const parseNewFormatData = (mainData: any) => {
-    console.log('parseNewFormatData 接收到的数据:', mainData);
+    console.log('=== parseNewFormatData 开始 ===');
+    console.log('接收到的 mainData:', mainData);
     let todoText = '', insightsText = '', socialText = '';
-    
+
     // 处理待办事项
+    console.log('检查待办事项...');
+    console.log('mainData.todo 存在:', !!mainData.todo);
+    console.log('mainData.todo 是数组:', Array.isArray(mainData.todo));
+    console.log('mainData.todo 长度:', mainData.todo ? mainData.todo.length : 0);
+    
     if (mainData.todo && Array.isArray(mainData.todo) && mainData.todo.length > 0) {
       const todoItem = mainData.todo[0];
+      console.log('第一个 todo 项:', todoItem);
+      console.log('todoItem.待办 存在:', !!todoItem.待办);
+      console.log('todoItem.待办 是数组:', Array.isArray(todoItem.待办));
+      console.log('todoItem.待办 长度:', todoItem.待办 ? todoItem.待办.length : 0);
+      
       if (todoItem.待办 && Array.isArray(todoItem.待办) && todoItem.待办.length > 0) {
         todoText = todoItem.待办.join(', ');
+        console.log('解析的待办事项:', todoText);
       }
     }
-    console.log('解析的待办事项:', todoText);
     
     // 处理洞察总结（从 todo 字段的 distilled_insights 中提取）
+    console.log('检查洞察总结...');
     if (mainData.todo && Array.isArray(mainData.todo) && mainData.todo.length > 0) {
       const todoItem = mainData.todo[0];
       const insights: string[] = [];
-      
+
+      console.log('todoItem.distilled_insights 存在:', !!todoItem.distilled_insights);
+      console.log('todoItem.distilled_insights 内容:', todoItem.distilled_insights);
+
       // 从 distilled_insights 中提取经验和点子
       if (todoItem.distilled_insights) {
         if (todoItem.distilled_insights.经验 && Array.isArray(todoItem.distilled_insights.经验)) {
+          console.log('找到经验数组:', todoItem.distilled_insights.经验);
           insights.push(...todoItem.distilled_insights.经验);
         }
         if (todoItem.distilled_insights.点子 && Array.isArray(todoItem.distilled_insights.点子)) {
+          console.log('找到点子数组:', todoItem.distilled_insights.点子);
           insights.push(...todoItem.distilled_insights.点子);
         }
       }
-      
+
       // 如果 todo 中没有洞察，尝试从 summary 字段获取
       if (insights.length === 0 && mainData.summary && Array.isArray(mainData.summary)) {
+        console.log('从 summary 字段获取洞察...');
         mainData.summary.forEach((item: any) => {
           if (item.distilled_insights && Array.isArray(item.distilled_insights)) {
             insights.push(...item.distilled_insights);
           }
         });
       }
-      
+
       insightsText = insights.join('\n');
+      console.log('解析的洞察总结:', insightsText);
     }
-    console.log('解析的洞察总结:', insightsText);
     
-    // 处理额外洞察（从 publishSuggestion 字段）
-    if (mainData.publishSuggestion && Array.isArray(mainData.publishSuggestion)) {
+    // 处理社交媒体内容（从 todo 字段的 social_media_posts 中提取）
+    console.log('检查社交媒体内容...');
+    if (mainData.todo && Array.isArray(mainData.todo) && mainData.todo.length > 0) {
+      const todoItem = mainData.todo[0];
+      const socialPosts: string[] = [];
+      
+      console.log('todoItem.social_media_posts 存在:', !!todoItem.social_media_posts);
+      console.log('todoItem.social_media_posts 内容:', todoItem.social_media_posts);
+      
+      if (todoItem.social_media_posts) {
+        // 处理即刻内容
+        if (todoItem.social_media_posts.即刻 && todoItem.social_media_posts.即刻.content) {
+          console.log('找到即刻内容:', todoItem.social_media_posts.即刻.content);
+          socialPosts.push(`即刻: ${todoItem.social_media_posts.即刻.content}`);
+        }
+        
+        // 处理小红书内容
+        if (todoItem.social_media_posts.小红书) {
+          const xiaohongshu = todoItem.social_media_posts.小红书;
+          console.log('找到小红书内容:', xiaohongshu);
+          if (xiaohongshu.title && xiaohongshu.content) {
+            socialPosts.push(`小红书: ${xiaohongshu.title}\n${xiaohongshu.content}`);
+          }
+        }
+        
+        // 处理X内容
+        if (todoItem.social_media_posts.x && todoItem.social_media_posts.x.content) {
+          console.log('找到X内容:', todoItem.social_media_posts.x.content);
+          socialPosts.push(`X: ${todoItem.social_media_posts.x.content}`);
+        }
+      }
+      
+      socialText = socialPosts.join('\n\n');
+      console.log('解析的社交媒体内容:', socialText);
+    }
+    
+    // 如果 todo 中没有社交媒体内容，尝试从 publishSuggestion 字段获取
+    if (socialText === '' && mainData.publishSuggestion && Array.isArray(mainData.publishSuggestion)) {
       const socialInsights: string[] = [];
       mainData.publishSuggestion.forEach((item: any) => {
         if (item["social_media_posts['即刻']"]) {
@@ -98,16 +204,19 @@ export default function ResultPage({ resultData, onBack }: ResultPageProps) {
       });
       socialText = socialInsights.join('\n\n');
     }
-    console.log('解析的额外洞察:', socialText);
+    
+    console.log('=== parseNewFormatData 最终结果 ===');
+    console.log('todoText:', todoText);
+    console.log('insightsText:', insightsText);
+    console.log('socialText:', socialText);
     
     return { todoText, insightsText, socialText };
   };
 
   // 解析数组格式的数据
   const parseArrayData = (dataArray: any[]) => {
-    console.log('parseArrayData 接收到的 dataArray:', dataArray);
     let todoText = '', insightsText = '', socialText = '';
-    
+
     // 处理待办事项（第一个数组）
     if (dataArray[0] && Array.isArray(dataArray[0]) && dataArray[0].length > 0) {
       const todoItem = dataArray[0][0];
@@ -115,38 +224,71 @@ export default function ResultPage({ resultData, onBack }: ResultPageProps) {
         todoText = todoItem["['待办']"];
       }
     }
-    console.log('Parsed todoText:', todoText);
-    
+
     // 处理洞察信息（第二个数组，如果存在）
     if (dataArray[1] && Array.isArray(dataArray[1]) && dataArray[1].length > 0) {
-      const insights = dataArray[1].map((item: any) => 
+      const insights = dataArray[1].map((item: any) =>
         item.distilled_insights ? item.distilled_insights.join('; ') : ''
       ).filter(Boolean);
       insightsText = insights.join('\n');
     }
-    console.log('Parsed insightsText (from array 1):', insightsText);
-    
+
     // 处理第三个数组（也是洞察信息，如果存在）
     if (dataArray[2] && Array.isArray(dataArray[2]) && dataArray[2].length > 0) {
-      const insights = dataArray[2].map((item: any) => 
+      const insights = dataArray[2].map((item: any) =>
         item.distilled_insights ? item.distilled_insights.join('; ') : ''
       ).filter(Boolean);
       socialText = insights.join('\n'); // Keeping it as socialText for the third box
     }
-    console.log('Parsed socialText (from array 2):', socialText);
-    
+
     return { todoText, insightsText, socialText };
   };
 
-  const { todoText, insightsText, socialText } = parseWebhookData(resultData);
-  
-  // 调试信息
-  console.log('最终解析结果:', { todoText, insightsText, socialText });
-  console.log('resultData 是否存在:', !!resultData);
-  console.log('resultData.data 是否存在:', !!resultData?.data);
+  // 使用 useMemo 缓存解析结果，避免重复解析
+  const { todoText, insightsText, socialText } = useMemo(() => {
+    console.log('=== useMemo 解析开始 ===');
+    const result = parseWebhookData(resultData);
+    console.log('=== useMemo 解析结果 ===', result);
+    return result;
+  }, [resultData]);
+
+  // 关键调试：检查最终传递给渲染的值
+  console.log('=== 最终渲染值检查 ===');
+  console.log('todoText 最终值:', todoText);
+  console.log('insightsText 最终值:', insightsText);
+  console.log('socialText 最终值:', socialText);
+  console.log('todoText 是否为空:', !todoText);
+  console.log('insightsText 是否为空:', !insightsText);
+  console.log('socialText 是否为空:', !socialText);
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center relative overflow-hidden">
+      {/* 调试信息区域 */}
+      <div className="absolute top-4 left-4 z-50">
+        <button
+          onClick={() => setShowDebugInfo(!showDebugInfo)}
+          className="bg-yellow-500 text-black px-3 py-1 rounded text-sm font-bold hover:bg-yellow-400 transition-colors"
+        >
+          {showDebugInfo ? '隐藏调试' : '显示调试'}
+        </button>
+        
+        {showDebugInfo && (
+          <div className="mt-2 bg-yellow-100 border border-yellow-300 rounded-lg p-4 max-w-2xl max-h-96 overflow-auto">
+            <h3 className="font-bold text-black mb-2">原始 Webhook 数据:</h3>
+            <pre className="text-xs text-black whitespace-pre-wrap">
+              {JSON.stringify(resultData, null, 2)}
+            </pre>
+            
+            <h3 className="font-bold text-black mb-2 mt-4">解析结果:</h3>
+            <div className="text-xs text-black">
+              <div><strong>待办事项:</strong> {todoText || '暂无数据'}</div>
+              <div><strong>洞察总结:</strong> {insightsText || '暂无数据'}</div>
+              <div><strong>社交媒体:</strong> {socialText || '暂无数据'}</div>
+            </div>
+          </div>
+        )}
+      </div>
+      
       {/* 结果图片和文本框容器 */}
       <div className="relative flex items-center justify-center">
         <img
@@ -157,51 +299,50 @@ export default function ResultPage({ resultData, onBack }: ResultPageProps) {
             filter: 'drop-shadow(0 25px 50px rgba(0, 0, 0, 0.3)) drop-shadow(0 10px 20px rgba(0, 0, 0, 0.2))'
           }}
         />
-        
+
         {/* 文本框1 - 洞察总结左边：待办事项 */}
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-full -translate-y-1/2 -ml-32 w-32 h-20 rounded-lg p-3">
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-full -translate-y-1/2 -ml-32 w-32 h-20 rounded-lg p-3 bg-white bg-opacity-80">
           <div className="text-xs text-gray-600 mb-1 font-semibold">待办事项</div>
-          <div className="text-sm text-gray-800 leading-tight overflow-hidden">
-            {todoText || '暂无数据'}
+          <div className="text-sm text-black font-bold leading-tight overflow-hidden">
+            {todoText ? todoText : '暂无数据'}
           </div>
         </div>
-        
+
         {/* 文本框2 - 页面中间：洞察总结 */}
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-24 rounded-lg p-3">
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-24 rounded-lg p-3 bg-white bg-opacity-80">
           <div className="text-xs text-gray-600 mb-1 font-semibold">洞察总结</div>
-          <div className="text-sm text-gray-800 leading-tight overflow-hidden">
-            {insightsText || '暂无数据'}
+          <div className="text-sm text-black font-bold leading-tight overflow-hidden">
+            {insightsText ? insightsText : '暂无数据'}
           </div>
         </div>
-        
+
         {/* 文本框3 - 底部中央：额外洞察 */}
-        <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 -ml-20 w-64 h-24 rounded-lg p-3">
+        <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 -ml-20 w-64 h-24 rounded-lg p-3 bg-white bg-opacity-80">
           <div className="text-xs text-gray-600 mb-1 font-semibold">额外洞察</div>
-          <div className="text-sm text-gray-800 leading-tight overflow-hidden">
-            {socialText || '暂无数据'}
+          <div className="text-sm text-black font-bold leading-tight overflow-hidden whitespace-pre-wrap">
+            {socialText ? socialText : '暂无数据'}
           </div>
         </div>
       </div>
-      
-      
-        {/* 返回按钮 */}
-        <button
-          onClick={onBack}
-          className="absolute top-8 right-8 text-white hover:text-gray-300 transition-all duration-300"
+
+      {/* 返回按钮 */}
+      <button
+        onClick={onBack}
+        className="absolute top-8 right-8 text-white hover:text-gray-300 transition-all duration-300"
+      >
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         >
-          <svg 
-            width="24" 
-            height="24" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="2" 
-            strokeLinecap="round" 
-            strokeLinejoin="round"
-          >
-            <path d="M19 12H5M12 19l-7-7 7-7"/>
-          </svg>
-        </button>
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+      </button>
     </div>
   );
 }

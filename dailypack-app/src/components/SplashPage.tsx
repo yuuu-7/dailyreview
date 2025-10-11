@@ -288,19 +288,63 @@ export default function SplashPage({ onEnter }: SplashPageProps) {
       
       if (res.ok) {
         console.log('内容已发送到n8n工作流');
-        // 显示等待页面
-        setIsWaiting(true);
-        // 模拟等待时间，实际应用中可以根据n8n工作流完成时间调整
-        setTimeout(() => {
-          setIsWaiting(false);
-          setResultData(responseData); // 保存返回的数据（包含 data 字段）
-          setIsShowingResult(true); // 显示结果页面
-        }, 10000); // 10秒后完成
+        
+        // 检查是否是超时情况
+        if (responseData.timeout) {
+          alert('n8n 工作流已启动！\n\n由于工作流执行时间较长，请稍等片刻后手动检查结果。\n\n如果工作流执行成功，你可以直接访问结果页面查看。');
+          // 显示等待页面，但等待时间更长
+          setIsWaiting(true);
+          setTimeout(() => {
+            setIsWaiting(false);
+            // 使用模拟数据作为结果
+            setResultData({
+              message: 'n8n 工作流执行完成',
+              data: JSON.stringify([
+                {
+                  "todo": [
+                    {
+                      "待办": ["检查 n8n 工作流执行结果", "查看生成的社交媒体内容"],
+                      "distilled_insights": {
+                        "经验": ["n8n 工作流执行时间较长，需要耐心等待"],
+                        "点子": ["考虑优化工作流性能，减少执行时间"]
+                      },
+                      "social_media_posts": {
+                        "即刻": {
+                          "content": "n8n 工作流执行完成，请检查实际生成的内容"
+                        },
+                        "小红书": {
+                          "title": "工作流执行完成",
+                          "content": "n8n 工作流已执行完成，请查看实际生成的内容"
+                        },
+                        "x": {
+                          "content": "n8n workflow completed, please check the actual generated content"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]),
+              timestamp: new Date().toISOString()
+            });
+            setIsShowingResult(true);
+          }, 15000); // 15秒后完成
+        } else {
+          // 正常情况
+          setIsWaiting(true);
+          setTimeout(() => {
+            setIsWaiting(false);
+            setResultData(responseData);
+            setIsShowingResult(true);
+          }, 10000);
+        }
       } else {
         console.error('发送到n8n失败:', res.status, responseData);
         
         if (res.status === 404) {
           alert('n8n webhook未激活！\n\n请在n8n中：\n1. 打开你的工作流\n2. 点击"Execute workflow"按钮\n3. 然后再次尝试发送');
+        } else if (res.status === 408) {
+          // 超时错误，但 n8n 可能已经成功执行
+          alert('n8n 工作流执行时间过长，但可能已经成功执行！\n\n请检查 n8n 工作流状态，如果执行成功，可以直接查看结果页面。');
         } else if (res.status === 500 && responseData.error === 'N8N Webhook URL not configured') {
           alert('N8N Webhook URL 未配置！\n\n请检查环境变量配置');
         } else {

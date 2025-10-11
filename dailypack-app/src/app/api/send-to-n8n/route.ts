@@ -19,6 +19,8 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
+      // 增加超时时间到 5 分钟
+      signal: AbortSignal.timeout(300000), // 300秒 = 5分钟
     });
 
     const responseData = await response.text();
@@ -40,6 +42,20 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error('Error sending to n8n:', error);
+    
+    // 处理超时错误 - 即使超时，n8n 工作流可能已经成功执行
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      // 返回成功状态，因为 n8n 工作流可能已经完成
+      return NextResponse.json(
+        { 
+          message: 'n8n 工作流已启动，执行时间较长但可能已成功完成',
+          data: '[]', // 返回空数据，让前端显示等待状态
+          timeout: true
+        },
+        { status: 200 }
+      );
+    }
+    
     return NextResponse.json(
       { 
         error: 'Internal server error',
