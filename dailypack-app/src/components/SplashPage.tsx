@@ -342,8 +342,8 @@ export default function SplashPage({ onEnter }: SplashPageProps) {
         
         if (res.status === 404) {
           alert('n8n webhook未激活！\n\n请在n8n中：\n1. 打开你的工作流\n2. 点击"Execute workflow"按钮\n3. 然后再次尝试发送');
-        } else if (res.status === 408) {
-          // 超时错误，但 n8n 可能已经成功执行
+        } else if (res.status === 408 || res.status === 524) {
+          // 超时错误（408 或 524），但 n8n 可能已经成功执行
           alert('n8n 工作流执行时间过长，但可能已经成功执行！\n\n请检查 n8n 工作流状态，如果执行成功，可以直接查看结果页面。');
         } else if (res.status === 500 && responseData.error === 'N8N Webhook URL not configured') {
           alert('N8N Webhook URL 未配置！\n\n请检查环境变量配置');

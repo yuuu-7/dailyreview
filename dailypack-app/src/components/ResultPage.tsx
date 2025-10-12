@@ -18,7 +18,7 @@ export default function ResultPage({ resultData, onBack }: ResultPageProps) {
     
     if (!data || !data.data) {
       console.log('数据不存在，返回空结果');
-      return { todoText: '', insightsText: '', socialText: '' };
+      return { todoText: '', insightsText: '', socialText: '', keywordsText: '' };
     }
 
     try {
@@ -38,6 +38,12 @@ export default function ResultPage({ resultData, onBack }: ResultPageProps) {
       // 处理新的数据格式
       if (Array.isArray(parsedData) && parsedData.length > 0) {
         console.log('检测到数组格式数据，长度:', parsedData.length);
+        
+        // 检查是否是嵌套的 data 数组格式 [{ "data": [...] }]
+        if (parsedData[0] && parsedData[0].data && Array.isArray(parsedData[0].data)) {
+          console.log('检测到嵌套 data 数组格式');
+          return parseSimpleTodoFormat(parsedData[0].data);
+        }
         
         // 检查是否是简单的待办事项数组格式
         if (parsedData[0] && parsedData[0]["['待办']"]) {
@@ -67,7 +73,7 @@ export default function ResultPage({ resultData, onBack }: ResultPageProps) {
       console.error('解析数据时出错:', error);
     }
 
-    return { todoText: '', insightsText: '', socialText: '' };
+    return { todoText: '', insightsText: '', socialText: '', keywordsText: '' };
   };
 
   // 解析简单待办事项格式
@@ -76,22 +82,107 @@ export default function ResultPage({ resultData, onBack }: ResultPageProps) {
     console.log('接收到的数据:', dataArray);
     
     const todoItems: string[] = [];
+    const insights: string[] = [];
+    const socialPosts: string[] = [];
+    const keywords: string[] = [];
     
     dataArray.forEach((item, index) => {
-      console.log(`处理第 ${index + 1} 个待办事项:`, item);
+      console.log(`处理第 ${index + 1} 个数据项:`, item);
+      
+      // 处理待办事项
       if (item["['待办']"]) {
         todoItems.push(item["['待办']"]);
         console.log(`提取到待办事项: ${item["['待办']"]}`);
       }
+      
+      // 处理洞察信息 - 支持多种字段名格式
+      if (item["['洞察']"]) {
+        insights.push(item["['洞察']"]);
+        console.log(`提取到洞察: ${item["['洞察']"]}`);
+      }
+      
+      // 处理 distilled_insights 字段
+      if (item.distilled_insights && Array.isArray(item.distilled_insights)) {
+        insights.push(...item.distilled_insights);
+        console.log(`提取到 distilled_insights: ${item.distilled_insights.join(', ')}`);
+      }
+      
+      // 处理社交媒体内容 - 支持多种字段名格式
+      if (item["['社交媒体']"]) {
+        socialPosts.push(item["['社交媒体']"]);
+        console.log(`提取到社交媒体内容: ${item["['社交媒体']"]}`);
+      }
+      
+      // 处理其他可能的字段名变体
+      if (item["['经验']"]) {
+        insights.push(`经验: ${item["['经验']"]}`);
+        console.log(`提取到经验: ${item["['经验']"]}`);
+      }
+      
+      if (item["['点子']"]) {
+        insights.push(`点子: ${item["['点子']"]}`);
+        console.log(`提取到点子: ${item["['点子']"]}`);
+      }
+      
+      if (item["['即刻']"]) {
+        socialPosts.push(`即刻: ${item["['即刻']"]}`);
+        console.log(`提取到即刻内容: ${item["['即刻']"]}`);
+      }
+      
+      if (item["['小红书']"]) {
+        socialPosts.push(`小红书: ${item["['小红书']"]}`);
+        console.log(`提取到小红书内容: ${item["['小红书']"]}`);
+      }
+      
+      if (item["['X']"] || item["['x']"]) {
+        socialPosts.push(`X: ${item["['X']"] || item["['x']"]}`);
+        console.log(`提取到X内容: ${item["['X']"] || item["['x']"]}`);
+      }
+      
+      // 处理 social_media_posts 字段格式
+      if (item["social_media_posts['即刻']"]) {
+        socialPosts.push(`即刻: ${item["social_media_posts['即刻']"]}`);
+        console.log(`提取到即刻内容: ${item["social_media_posts['即刻']"]}`);
+      }
+      
+      if (item["social_media_posts.x"]) {
+        socialPosts.push(`X: ${item["social_media_posts.x"]}`);
+        console.log(`提取到X内容: ${item["social_media_posts.x"]}`);
+      }
+      
+      // 处理关键词
+      if (item["['关键词']"]) {
+        keywords.push(item["['关键词']"]);
+        console.log(`提取到关键词: ${item["['关键词']"]}`);
+      }
+      
+      if (item.keywords) {
+        if (Array.isArray(item.keywords)) {
+          keywords.push(...item.keywords);
+          console.log(`提取到关键词数组: ${item.keywords.join(', ')}`);
+        } else {
+          keywords.push(item.keywords);
+          console.log(`提取到关键词: ${item.keywords}`);
+        }
+      }
     });
     
-    const todoText = todoItems.join(', ');
-    console.log('最终待办事项文本:', todoText);
+    const todoText = todoItems.join('\n');
+    const insightsText = insights.join('\n');
+    const socialText = socialPosts.join('\n\n');
+    const keywordsText = keywords.join(', ');
+    
+    console.log('最终解析结果:');
+    console.log('待办事项:', todoText);
+    console.log('洞察总结:', insightsText);
+    console.log('社交媒体:', socialText);
+    console.log('关键词:', keywordsText);
     
     return {
       todoText,
-      insightsText: '', // 简单格式没有洞察信息
-      socialText: ''    // 简单格式没有社交媒体信息
+      insightsText: insightsText || '暂无数据',
+      socialText: socialText || '暂无数据',
+      keywordsText: keywordsText || '暂无数据'
     };
   };
 
@@ -99,7 +190,7 @@ export default function ResultPage({ resultData, onBack }: ResultPageProps) {
   const parseNewFormatData = (mainData: any) => {
     console.log('=== parseNewFormatData 开始 ===');
     console.log('接收到的 mainData:', mainData);
-    let todoText = '', insightsText = '', socialText = '';
+    let todoText = '', insightsText = '', socialText = '', keywordsText = '';
 
     // 处理待办事项
     console.log('检查待办事项...');
@@ -205,17 +296,30 @@ export default function ResultPage({ resultData, onBack }: ResultPageProps) {
       socialText = socialInsights.join('\n\n');
     }
     
+    // 处理关键词
+    console.log('检查关键词...');
+    if (mainData.keywords) {
+      if (Array.isArray(mainData.keywords)) {
+        keywordsText = mainData.keywords.join(', ');
+        console.log('找到关键词数组:', mainData.keywords);
+      } else {
+        keywordsText = mainData.keywords;
+        console.log('找到关键词:', mainData.keywords);
+      }
+    }
+    
     console.log('=== parseNewFormatData 最终结果 ===');
     console.log('todoText:', todoText);
     console.log('insightsText:', insightsText);
     console.log('socialText:', socialText);
+    console.log('keywordsText:', keywordsText);
     
-    return { todoText, insightsText, socialText };
+    return { todoText, insightsText, socialText, keywordsText };
   };
 
   // 解析数组格式的数据
   const parseArrayData = (dataArray: any[]) => {
-    let todoText = '', insightsText = '', socialText = '';
+    let todoText = '', insightsText = '', socialText = '', keywordsText = '';
 
     // 处理待办事项（第一个数组）
     if (dataArray[0] && Array.isArray(dataArray[0]) && dataArray[0].length > 0) {
@@ -241,11 +345,11 @@ export default function ResultPage({ resultData, onBack }: ResultPageProps) {
       socialText = insights.join('\n'); // Keeping it as socialText for the third box
     }
 
-    return { todoText, insightsText, socialText };
+    return { todoText, insightsText, socialText, keywordsText };
   };
 
   // 使用 useMemo 缓存解析结果，避免重复解析
-  const { todoText, insightsText, socialText } = useMemo(() => {
+  const { todoText, insightsText, socialText, keywordsText } = useMemo(() => {
     console.log('=== useMemo 解析开始 ===');
     const result = parseWebhookData(resultData);
     console.log('=== useMemo 解析结果 ===', result);
@@ -257,9 +361,11 @@ export default function ResultPage({ resultData, onBack }: ResultPageProps) {
   console.log('todoText 最终值:', todoText);
   console.log('insightsText 最终值:', insightsText);
   console.log('socialText 最终值:', socialText);
+  console.log('keywordsText 最终值:', keywordsText);
   console.log('todoText 是否为空:', !todoText);
   console.log('insightsText 是否为空:', !insightsText);
   console.log('socialText 是否为空:', !socialText);
+  console.log('keywordsText 是否为空:', !keywordsText);
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center relative overflow-hidden">
@@ -273,17 +379,53 @@ export default function ResultPage({ resultData, onBack }: ResultPageProps) {
         </button>
         
         {showDebugInfo && (
-          <div className="mt-2 bg-yellow-100 border border-yellow-300 rounded-lg p-4 max-w-2xl max-h-96 overflow-auto">
+          <div className="mt-2 bg-yellow-100 border border-yellow-300 rounded-lg p-4 max-w-4xl max-h-96 overflow-auto">
             <h3 className="font-bold text-black mb-2">原始 Webhook 数据:</h3>
             <pre className="text-xs text-black whitespace-pre-wrap">
               {JSON.stringify(resultData, null, 2)}
             </pre>
             
-            <h3 className="font-bold text-black mb-2 mt-4">解析结果:</h3>
+            <h3 className="font-bold text-black mb-2 mt-4">解析后的数据结构:</h3>
+            <pre className="text-xs text-black whitespace-pre-wrap">
+              {(() => {
+                if (!resultData || !resultData.data) return '无数据';
+                try {
+                  const parsed = typeof resultData.data === 'string' ? JSON.parse(resultData.data) : resultData.data;
+                  return JSON.stringify(parsed, null, 2);
+                } catch (e) {
+                  return '解析失败: ' + (e instanceof Error ? e.message : String(e));
+                }
+              })()}
+            </pre>
+            
+            <h3 className="font-bold text-black mb-2 mt-4">数据项详情:</h3>
+            <div className="text-xs text-black">
+              {(() => {
+                if (!resultData || !resultData.data) return <div>无数据</div>;
+                try {
+                  const parsed = typeof resultData.data === 'string' ? JSON.parse(resultData.data) : resultData.data;
+                  if (Array.isArray(parsed)) {
+                    return parsed.map((item, index) => (
+                      <div key={index} className="mb-2 p-2 bg-gray-50 rounded">
+                        <div className="font-semibold">数据项 {index + 1}:</div>
+                        <pre className="text-xs mt-1">{JSON.stringify(item, null, 2)}</pre>
+                      </div>
+                    ));
+                  } else {
+                    return <div>非数组格式数据</div>;
+                  }
+                } catch (e) {
+                  return <div>解析失败: {e instanceof Error ? e.message : String(e)}</div>;
+                }
+              })()}
+            </div>
+            
+            <h3 className="font-bold text-black mb-2 mt-4">最终解析结果:</h3>
             <div className="text-xs text-black">
               <div><strong>待办事项:</strong> {todoText || '暂无数据'}</div>
               <div><strong>洞察总结:</strong> {insightsText || '暂无数据'}</div>
               <div><strong>社交媒体:</strong> {socialText || '暂无数据'}</div>
+              <div><strong>关键词:</strong> {keywordsText || '暂无数据'}</div>
             </div>
           </div>
         )}
@@ -292,34 +434,58 @@ export default function ResultPage({ resultData, onBack }: ResultPageProps) {
       {/* 结果图片和文本框容器 */}
       <div className="relative flex items-center justify-center">
         <img
-          src="/result-paper.png"
+          src="/paper2@2x@2x.png"
           alt="Daily Report Result"
-          className="w-1/2 h-1/2 object-contain"
+          className="w-4/5 h-4/5 object-contain"
           style={{
             filter: 'drop-shadow(0 25px 50px rgba(0, 0, 0, 0.3)) drop-shadow(0 10px 20px rgba(0, 0, 0, 0.2))'
           }}
         />
 
-        {/* 文本框1 - 洞察总结左边：待办事项 */}
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-full -translate-y-1/2 -ml-32 w-32 h-20 rounded-lg p-3 bg-white bg-opacity-80">
-          <div className="text-xs text-gray-600 mb-1 font-semibold">待办事项</div>
-          <div className="text-sm text-black font-bold leading-tight overflow-hidden">
-            {todoText ? todoText : '暂无数据'}
+        {/* 文本框1 - 待办事项 */}
+        <div className="absolute top-1/3 left-1/4 transform -translate-x-1/2 -translate-y-1/2 w-48 h-32 p-3" style={{ marginTop: '112px', marginLeft: '55px' }}>
+          <div className="text-xs text-black font-bold leading-tight overflow-hidden whitespace-pre-wrap">
+            {todoText ? (
+              todoText.split('\n').map((item, index) => (
+                <div key={index} className="flex items-start mb-3">
+                  <div className="w-3 h-3 border border-gray-400 mr-2 mt-0.5 flex-shrink-0"></div>
+                  <span className="flex-1">{item.trim()}</span>
+                </div>
+              ))
+            ) : (
+              <div className="flex items-start">
+                <div className="w-3 h-3 border border-gray-400 mr-2 mt-0.5 flex-shrink-0"></div>
+                <span className="flex-1">暂无数据</span>
+              </div>
+            )}
           </div>
         </div>
 
         {/* 文本框2 - 页面中间：洞察总结 */}
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-24 rounded-lg p-3 bg-white bg-opacity-80">
-          <div className="text-xs text-gray-600 mb-1 font-semibold">洞察总结</div>
-          <div className="text-sm text-black font-bold leading-tight overflow-hidden">
-            {insightsText ? insightsText : '暂无数据'}
+        <div className="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-100 h-32 p-3" style={{ marginTop: '112px' }}>
+          <div className="text-xs text-black font-bold leading-tight overflow-hidden whitespace-pre-wrap">
+            {insightsText ? (
+              insightsText.split('\n').map((item, index) => (
+                <div key={index} className="mb-3">
+                  {item.trim()}
+                </div>
+              ))
+            ) : (
+              <div>暂无数据</div>
+            )}
           </div>
         </div>
 
-        {/* 文本框3 - 底部中央：额外洞察 */}
-        <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 -ml-20 w-64 h-24 rounded-lg p-3 bg-white bg-opacity-80">
-          <div className="text-xs text-gray-600 mb-1 font-semibold">额外洞察</div>
-          <div className="text-sm text-black font-bold leading-tight overflow-hidden whitespace-pre-wrap">
+        {/* 文本框3 - 关键词 */}
+        <div className="absolute top-1/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-16 p-3" style={{ marginTop: '50px' }}>
+          <div className="text-xs text-black font-bold leading-tight overflow-hidden whitespace-pre-wrap">
+            {keywordsText ? keywordsText : '暂无数据'}
+          </div>
+        </div>
+
+        {/* 文本框4 - 底部中央：额外洞察 */}
+        <div className="absolute top-1/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-24 p-3" style={{ marginTop: '665px', marginLeft: '-160px' }}>
+          <div className="text-xs text-black font-bold leading-tight overflow-hidden whitespace-pre-wrap">
             {socialText ? socialText : '暂无数据'}
           </div>
         </div>
