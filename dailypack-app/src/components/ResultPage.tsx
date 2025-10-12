@@ -150,10 +150,16 @@ export default function ResultPage({ resultData, onBack }: ResultPageProps) {
         console.log(`提取到X内容: ${item["social_media_posts.x"]}`);
       }
       
-      // 处理关键词
+      // 处理关键词 - 支持多种字段名格式
       if (item["['关键词']"]) {
         keywords.push(item["['关键词']"]);
         console.log(`提取到关键词: ${item["['关键词']"]}`);
+      }
+      
+      // 处理 ["关键词"] 格式
+      if (item["[\"关键词\"]"]) {
+        keywords.push(item["[\"关键词\"]"]);
+        console.log(`提取到关键词: ${item["[\"关键词\"]"]}`);
       }
       
       if (item.keywords) {
@@ -476,14 +482,26 @@ export default function ResultPage({ resultData, onBack }: ResultPageProps) {
           </div>
         </div>
 
-        {/* 文本框3 - 关键词 */}
-        <div className="absolute top-1/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-16 p-3" style={{ marginTop: '50px' }}>
+        {/* 文本框3 - 日期 */}
+        <div className="absolute top-1/4 left-1/2 transform -translate-y-1/2 w-80 h-12 p-3" style={{ marginTop: '32px', marginLeft: '-140px' }}>
+          <div className="text-sm text-black font-bold leading-tight overflow-hidden whitespace-pre-wrap">
+            {new Date().toLocaleDateString('zh-CN', { 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric',
+              weekday: 'long'
+            })}
+          </div>
+        </div>
+
+        {/* 文本框4 - 关键词 */}
+        <div className="absolute top-1/4 left-1/2 transform -translate-y-1/2 w-80 h-16 p-3" style={{ marginTop: '72px', marginLeft: '-140px' }}>
           <div className="text-xs text-black font-bold leading-tight overflow-hidden whitespace-pre-wrap">
             {keywordsText ? keywordsText : '暂无数据'}
           </div>
         </div>
 
-        {/* 文本框4 - 底部中央：额外洞察 */}
+        {/* 文本框5 - 底部中央：额外洞察 */}
         <div className="absolute top-1/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-24 p-3" style={{ marginTop: '665px', marginLeft: '-160px' }}>
           <div className="text-xs text-black font-bold leading-tight overflow-hidden whitespace-pre-wrap">
             {socialText ? socialText : '暂无数据'}
